@@ -92,7 +92,8 @@ export class RazorpayProvider implements PaymentProvider {
     const pn = encodeURIComponent(merchantName);
 
     // Route direct UPI scans to user's UPI VPA (princetarikislam-4@okaxis)
-    const upiUri = `upi://pay?pa=${vpa}&pn=${pn}&am=${amountRupees}&tr=${referenceId}&tn=${note}&cu=INR`;
+    // Note: For personal (P2P) VPAs, 'tr' must be omitted or UPI apps (GPay, PhonePe) will reject the transaction
+    const upiUri = `upi://pay?pa=${vpa}&pn=${pn}&am=${amountRupees}&cu=INR&tn=${note}`;
     const qrImageUrl = await QRCode.toDataURL(upiUri, {
       errorCorrectionLevel: "M",
       margin: 2,

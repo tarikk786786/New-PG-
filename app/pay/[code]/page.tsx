@@ -4,13 +4,20 @@ import { providerFactory } from "@/lib/providers";
 import { CheckoutClient } from "./checkout-client";
 import { generateId, generateOrderNumber } from "@/lib/utils";
 
-export default async function PayPage({ params }: { params: Promise<{ code: string }> }) {
+export default async function PayPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ code: string }>;
+  searchParams?: Promise<{ amount?: string; title?: string; desc?: string }>;
+}) {
   const { code } = await params;
+  const query = searchParams ? await searchParams : {};
 
-  let title = "Secure Payment";
-  let amount = 49900; // default 499.00
+  let title = query.title || "Secure Payment";
+  let amount = query.amount ? Math.round(parseFloat(query.amount) * 100) : 49900; // default 499.00
   let currency = "INR";
-  let description = "Order payment";
+  let description = query.desc || "Order payment";
   let orderId = "";
   let orderNumber = "";
   let qrImageUrl = "";
@@ -105,6 +112,8 @@ export default async function PayPage({ params }: { params: Promise<{ code: stri
     createdAt: new Date().toISOString(),
   });
 
+  const vpa = process.env.UPI_VPA || "princetarikislam-4@okaxis";
+
   return (
     <CheckoutClient
       orderId={orderId}
@@ -118,6 +127,7 @@ export default async function PayPage({ params }: { params: Promise<{ code: stri
       referenceId={referenceId}
       providerName={activeProvider.name}
       providerId={activeProvider.id}
+      vpa={vpa}
     />
   );
 }

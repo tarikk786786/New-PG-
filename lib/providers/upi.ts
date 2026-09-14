@@ -31,14 +31,16 @@ export class UPIProvider implements PaymentProvider {
     vpa: string;
     name: string;
     amountPaise: number;
-    transactionRef: string;
+    transactionRef?: string;
     note?: string;
   }): string {
     const amountRupees = (params.amountPaise / 100).toFixed(2);
     const note = encodeURIComponent(params.note || "PayCore Order Payment");
     const name = encodeURIComponent(params.name);
 
-    return `upi://pay?pa=${params.vpa}&pn=${name}&am=${amountRupees}&tr=${params.transactionRef}&tn=${note}&cu=INR`;
+    // If transactionRef provided and merchant MCC configured, include tr, else omit for P2P compatibility
+    const trParam = params.transactionRef ? `&tr=${params.transactionRef}` : "";
+    return `upi://pay?pa=${params.vpa}&pn=${name}&am=${amountRupees}${trParam}&tn=${note}&cu=INR`;
   }
 
   async createDynamicQR(params: CreateDynamicQRParams): Promise<ProviderQRResult> {
@@ -47,7 +49,6 @@ export class UPIProvider implements PaymentProvider {
       vpa: this.vpa,
       name: this.merchantName,
       amountPaise: params.amount,
-      transactionRef: referenceId,
       note: params.description || `Order ${params.orderNumber}`,
     });
 

@@ -29,6 +29,7 @@ interface CheckoutClientProps {
   referenceId: string;
   providerName: string;
   providerId: string;
+  vpa?: string;
 }
 
 export function CheckoutClient({
@@ -43,12 +44,17 @@ export function CheckoutClient({
   referenceId,
   providerName,
   providerId,
+  vpa = "princetarikislam-4@okaxis",
 }: CheckoutClientProps) {
   const [secondsRemaining, setSecondsRemaining] = useState(15 * 60);
   const [copied, setCopied] = useState(false);
+  const [copiedVpa, setCopiedVpa] = useState(false);
   const [status, setStatus] = useState<"PENDING" | "PAID" | "FAILED">("PENDING");
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationMessage, setSimulationMessage] = useState("");
+  const [utrInput, setUtrInput] = useState("");
+  const [isSubmittingUtr, setIsSubmittingUtr] = useState(false);
+  const [utrMessage, setUtrMessage] = useState("");
 
   // Countdown timer
   useEffect(() => {
@@ -88,6 +94,41 @@ export function CheckoutClient({
     navigator.clipboard.writeText(upiIntentUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyVpa = () => {
+    navigator.clipboard.writeText(vpa);
+    setCopiedVpa(true);
+    setTimeout(() => setCopiedVpa(false), 2000);
+  };
+
+  const handleConfirmUtr = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!utrInput.trim()) return;
+
+    setIsSubmittingUtr(true);
+    setUtrMessage("");
+    try {
+      const res = await fetch("/api/v1/checkout/confirm-utr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          utrNumber: utrInput.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUtrMessage("Payment confirmed! Loading receipt...");
+        setStatus("PAID");
+      } else {
+        setUtrMessage(data.error || "Failed to confirm UTR");
+      }
+    } catch (err: any) {
+      setUtrMessage(err.message || "Network error. Please try again.");
+    } finally {
+      setIsSubmittingUtr(false);
+    }
   };
 
   // Immediate simulation trigger for sandbox testing
@@ -225,32 +266,85 @@ export function CheckoutClient({
                 </div>
               </div>
 
-              {/* Supported UPI Apps logos / text */}
-              <div className="mt-5 flex items-center justify-center gap-2 text-xs text-slate-400">
-                <span className="px-2 py-1 bg-slate-900/60 border border-slate-800 rounded-lg text-[11px]">Google Pay</span>
-                <span className="px-2 py-1 bg-slate-900/60 border border-slate-800 rounded-lg text-[11px]">PhonePe</span>
-                <span className="px-2 py-1 bg-slate-900/60 border border-slate-800 rounded-lg text-[11px]">Paytm</span>
-                <span className="px-2 py-1 bg-slate-900/60 border border-slate-800 rounded-lg text-[11px]">BHIM</span>
+              {/* Direct UPI App Buttons for Mobile */}
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                <a
+                  href={upiIntentUrl}
+                  className="py-2.5 px-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-center transition flex flex-col items-center justify-center gap-1 group"
+                >
+                  <span className="text-xs font-semibold text-white group-hover:text-blue-400">Google Pay</span>
+                  <span className="text-[10px] text-slate-400">Tap to Pay</span>
+                </a>
+                <a
+                  href={upiIntentUrl}
+                  className="py-2.5 px-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-center transition flex flex-col items-center justify-center gap-1 group"
+                >
+                  <span className="text-xs font-semibold text-purple-400 group-hover:text-purple-300">PhonePe</span>
+                  <span className="text-[10px] text-slate-400">Tap to Pay</span>
+                </a>
+                <a
+                  href={upiIntentUrl}
+                  className="py-2.5 px-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-center transition flex flex-col items-center justify-center gap-1 group"
+                >
+                  <span className="text-xs font-semibold text-sky-400 group-hover:text-sky-300">Paytm / BHIM</span>
+                  <span className="text-[10px] text-slate-400">Tap to Pay</span>
+                </a>
               </div>
 
-              {/* Mobile Direct Intent Button */}
-              <div className="mt-6 space-y-2.5">
+              {/* Main Pay Intent Button */}
+              <div className="mt-4 space-y-2">
                 <a
                   href={upiIntentUrl}
                   className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3 px-5 rounded-xl transition shadow-lg shadow-blue-500/20 text-sm"
                 >
                   <Smartphone className="w-4 h-4" />
-                  <span>Pay with Installed UPI App</span>
+                  <span>Open in Any UPI App</span>
                   <ExternalLink className="w-3.5 h-3.5 opacity-70" />
                 </a>
 
+                {/* Copy VPA button */}
                 <button
-                  onClick={copyUpiPayload}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 font-medium py-2.5 px-4 rounded-xl transition text-xs"
+                  onClick={copyVpa}
+                  className="w-full inline-flex items-center justify-between bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 font-mono py-2 px-3 rounded-xl transition text-xs"
                 >
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? "UPI Payload Copied!" : "Copy Raw UPI Payment URI"}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-400">UPI ID:</span>
+                    <span className="text-white font-semibold">{vpa}</span>
+                  </div>
+                  <span className="text-[11px] text-blue-400 flex items-center gap-1">
+                    {copiedVpa ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedVpa ? "Copied!" : "Copy"}</span>
+                  </span>
                 </button>
+              </div>
+
+              {/* Enter UTR Proof Form */}
+              <div className="mt-5 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-left">
+                <div className="text-xs font-semibold text-white mb-1">Paid via UPI? Verify Instantly:</div>
+                <p className="text-[11px] text-slate-400 mb-3">
+                  Enter the 12-digit UPI Ref / UTR number from your payment app receipt to complete the order immediately.
+                </p>
+                <form onSubmit={handleConfirmUtr} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={utrInput}
+                    onChange={(e) => setUtrInput(e.target.value)}
+                    placeholder="e.g. 425718291034"
+                    maxLength={20}
+                    className="flex-1 bg-slate-950 border border-slate-700 text-white text-xs px-3 py-2 rounded-xl font-mono focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmittingUtr || !utrInput.trim()}
+                    className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-xl transition flex items-center gap-1"
+                  >
+                    {isSubmittingUtr ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    <span>Verify</span>
+                  </button>
+                </form>
+                {utrMessage && (
+                  <p className="text-[11px] text-amber-400 mt-2 font-mono">{utrMessage}</p>
+                )}
               </div>
 
               {/* Live Polling Status */}

@@ -70,7 +70,10 @@ export async function POST(req: NextRequest) {
       amount: link.amount,
     });
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const proto = req.headers.get("x-forwarded-proto") || "https";
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "pay.tarikislam.in";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
+
     return NextResponse.json(
       {
         success: true,
