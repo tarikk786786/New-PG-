@@ -85,9 +85,23 @@ export class RazorpayProvider implements PaymentProvider {
 
   async createDynamicQR(params: CreateDynamicQRParams): Promise<ProviderQRResult> {
     const referenceId = `rzp_qr_${params.orderNumber}`;
-    // Razorpay UPI QR payload format or fallback standard UPI URI
-    const upiUri = `upi://pay?pa=razorpay@icici&pn=PayCoreRazorpay&am=${(params.amount / 100).toFixed(2)}&tr=${referenceId}&tn=Order-${params.orderNumber}&cu=INR`;
-    const qrImageUrl = await QRCode.toDataURL(upiUri);
+    const vpa = process.env.UPI_VPA || "princetarikislam-4@okaxis";
+    const merchantName = process.env.UPI_MERCHANT_NAME || "Tarik Islam";
+    const amountRupees = (params.amount / 100).toFixed(2);
+    const note = encodeURIComponent(params.description || `Order ${params.orderNumber}`);
+    const pn = encodeURIComponent(merchantName);
+
+    // Route direct UPI scans to user's UPI VPA (princetarikislam-4@okaxis)
+    const upiUri = `upi://pay?pa=${vpa}&pn=${pn}&am=${amountRupees}&tr=${referenceId}&tn=${note}&cu=INR`;
+    const qrImageUrl = await QRCode.toDataURL(upiUri, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 300,
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+    });
     const expiresAt = new Date(Date.now() + (params.expiresInMinutes || 15) * 60 * 1000).toISOString();
 
     return {
