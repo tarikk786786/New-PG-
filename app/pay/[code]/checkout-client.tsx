@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
+import { useEffect, useState, useMemo } from "react";
+import QRCode from "qrcode";
 import { formatPaise } from "@/lib/utils";
 import {
   ShieldCheck,
   CheckCircle2,
   Clock,
   Smartphone,
-  QrCode,
   Copy,
   Check,
-  Sparkles,
   ArrowRight,
   RefreshCw,
   ExternalLink,
@@ -19,6 +17,8 @@ import {
   Key,
   FileText,
   Zap,
+  Edit3,
+  Info,
 } from "lucide-react";
 
 interface CheckoutClientProps {
@@ -59,15 +59,72 @@ export function CheckoutClient({
   deliveryInstructions,
 }: CheckoutClientProps) {
   const [secondsRemaining, setSecondsRemaining] = useState(15 * 60);
-  const [copied, setCopied] = useState(false);
   const [copiedVpa, setCopiedVpa] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
   const [status, setStatus] = useState<"PENDING" | "PAID" | "FAILED">("PENDING");
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simulationMessage, setSimulationMessage] = useState("");
   const [utrInput, setUtrInput] = useState("");
   const [isSubmittingUtr, setIsSubmittingUtr] = useState(false);
   const [utrMessage, setUtrMessage] = useState("");
+
+  // Desired Payment customization state (Static vs Dynamic)
+  const [amountRupees, setAmountRupees] = useState<string>((amount / 100).toFixed(2));
+  const [isStatic, setIsStatic] = useState<boolean>(false);
+  const [isCustomEditing, setIsCustomEditing] = useState<boolean>(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>(qrImageUrl);
+
+  // Compute clean UPI URLs for different apps
+  const urls = useMemo(() => {
+    const name = "Tarik+Islam";
+    const note = `Order+${orderNumber}`;
+    const parsedAmount = parseFloat(amountRupees);
+
+    if (isStatic || isNaN(parsedAmount) || parsedAmount <= 0) {
+      // Static Counter QR (Open desire payment - customer enters amount in app)
+      const base = `upi://pay?pa=${vpa}&pn=${name}&cu=INR&tn=${note}`;
+      return {
+        generic: base,
+        phonepe: `phonepe://pay?pa=${vpa}&pn=${name}&cu=INR&tn=${note}`,
+        gpay: `gpay://upi/pay?pa=${vpa}&pn=${name}&cu=INR&tn=${note}`,
+        paytm: `paytmmp://pay?pa=${vpa}&pn=${name}&cu=INR&tn=${note}`,
+        displayAmount: "Custom (Customer Choice)",
+        isStatic: true,
+      };
+    }
+
+    const formatted = parsedAmount.toFixed(2);
+    // Dynamic QR with exact desired payment amount
+    const base = `upi://pay?pa=${vpa}&pn=${name}&am=${formatted}&cu=INR&tn=${note}`;
+    return {
+      generic: base,
+      phonepe: `phonepe://pay?pa=${vpa}&pn=${name}&am=${formatted}&cu=INR&tn=${note}`,
+      gpay: `gpay://upi/pay?pa=${vpa}&pn=${name}&am=${formatted}&cu=INR&tn=${note}`,
+      paytm: `paytmmp://pay?pa=${vpa}&pn=${name}&am=${formatted}&cu=INR&tn=${note}`,
+      displayAmount: `₹${formatted}`,
+      isStatic: false,
+    };
+  }, [amountRupees, isStatic, vpa, orderNumber]);
+
+  // Dynamically update QR code when desire amount changes
+  useEffect(() => {
+    let isMounted = true;
+    QRCode.toDataURL(urls.generic, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 300,
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+    })
+      .then((url) => {
+        if (isMounted) setQrCodeDataUrl(url);
+      })
+      .catch((err) => console.error("QR gen error:", err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, [urls.generic]);
 
   // Countdown timer
   useEffect(() => {
@@ -102,12 +159,6 @@ export function CheckoutClient({
   const minutes = Math.floor(secondsRemaining / 60);
   const seconds = secondsRemaining % 60;
   const timerDisplay = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-
-  const copyUpiPayload = () => {
-    navigator.clipboard.writeText(upiIntentUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const copyVpa = () => {
     navigator.clipboard.writeText(vpa);
@@ -148,34 +199,6 @@ export function CheckoutClient({
       setUtrMessage(err.message || "Network error. Please try again.");
     } finally {
       setIsSubmittingUtr(false);
-    }
-  };
-
-  // Immediate simulation trigger for sandbox testing
-  const handleSimulatePayment = async () => {
-    setIsSimulating(true);
-    setSimulationMessage("Simulating authorized bank confirmation...");
-    try {
-      const res = await fetch("/api/test/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "SUCCESS",
-          orderId,
-          amount,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSimulationMessage("Authoritative webhook received! Payment marked PAID.");
-        setStatus("PAID");
-      } else {
-        setSimulationMessage(data.error || "Simulation failed");
-      }
-    } catch (err: any) {
-      setSimulationMessage(err.message || "Failed to trigger simulator");
-    } finally {
-      setIsSimulating(false);
     }
   };
 
@@ -221,11 +244,13 @@ export function CheckoutClient({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Amount Paid</span>
-                <span className="font-semibold text-emerald-400 text-sm">{formatPaise(amount, currency)}</span>
+                <span className="font-semibold text-emerald-400 text-sm">
+                  {urls.isStatic ? urls.displayAmount : `₹${amountRupees}`}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Payment Engine</span>
-                <span className="text-slate-300 font-mono">{providerName}</span>
+                <span className="text-slate-400">Beneficiary UPI ID</span>
+                <span className="text-slate-300 font-mono">{vpa}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Timestamp</span>
@@ -315,7 +340,7 @@ export function CheckoutClient({
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-extrabold text-white tracking-tight">
-                    {formatPaise(amount, currency)}
+                    {urls.displayAmount}
                   </div>
                   <div className="text-[11px] text-slate-400 flex items-center justify-end gap-1 mt-0.5">
                     <Clock className="w-3 h-3 text-amber-400" />
@@ -323,14 +348,104 @@ export function CheckoutClient({
                   </div>
                 </div>
               </div>
+
+              {/* Desire Payment Selector / Customizer */}
+              <div className="mt-4 pt-3 border-t border-slate-800/80">
+                <div className="flex items-center justify-between text-xs text-slate-300 mb-2">
+                  <span className="font-medium flex items-center gap-1">
+                    <Edit3 className="w-3 h-3 text-blue-400" /> Select or Enter Desired Amount:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsStatic(!isStatic);
+                      setIsCustomEditing(false);
+                    }}
+                    className={`text-[10px] px-2 py-0.5 rounded border transition font-medium ${
+                      isStatic
+                        ? "bg-purple-950 text-purple-300 border-purple-500/40"
+                        : "bg-slate-800 text-slate-400 border-slate-700"
+                    }`}
+                  >
+                    {isStatic ? "Static (Open in App)" : "Dynamic (Exact)"}
+                  </button>
+                </div>
+
+                {/* Quick amount chips */}
+                <div className="flex flex-wrap gap-1.5">
+                  {["1.00", "10.00", "50.00", "100.00", "499.00"].map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => {
+                        setAmountRupees(val);
+                        setIsStatic(false);
+                        setIsCustomEditing(false);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border ${
+                        !isStatic && amountRupees === val
+                          ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20"
+                          : "bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700"
+                      }`}
+                    >
+                      ₹{val.split(".")[0]}
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomEditing(true);
+                      setIsStatic(false);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border ${
+                      isCustomEditing && !isStatic
+                        ? "bg-blue-600 text-white border-blue-500"
+                        : "bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700"
+                    }`}
+                  >
+                    Custom ₹
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsStatic(true);
+                      setIsCustomEditing(false);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border ${
+                      isStatic
+                        ? "bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-500/20"
+                        : "bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700"
+                    }`}
+                  >
+                    Open / Any
+                  </button>
+                </div>
+
+                {isCustomEditing && !isStatic && (
+                  <div className="mt-2.5 flex items-center gap-2 animate-in fade-in">
+                    <span className="text-slate-400 font-semibold text-xs">₹</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="1"
+                      value={amountRupees}
+                      onChange={(e) => setAmountRupees(e.target.value)}
+                      placeholder="Enter desired amount (e.g. 25.00)"
+                      className="flex-1 bg-slate-950 border border-blue-500/60 text-white text-xs px-3 py-1.5 rounded-lg focus:outline-none focus:border-blue-400 font-mono"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Dynamic QR & Payment Area */}
             <div className="p-6 text-center">
               <div className="relative inline-block p-3 bg-white rounded-2xl shadow-xl border border-slate-200">
-                {qrImageUrl ? (
+                {qrCodeDataUrl ? (
                   <img
-                    src={qrImageUrl}
+                    src={qrCodeDataUrl}
                     alt="Scan UPI QR"
                     width={220}
                     height={220}
@@ -338,43 +453,45 @@ export function CheckoutClient({
                   />
                 ) : (
                   <div className="w-[220px] h-[220px] flex items-center justify-center bg-slate-100 rounded-lg text-slate-400 text-xs">
-                    Generating dynamic QR...
+                    Generating QR code...
                   </div>
                 )}
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] px-2.5 py-0.5 rounded-full border border-slate-700 font-medium">
-                  Scan with any UPI App
+                  {urls.isStatic ? "Scan to Pay Any Amount" : `Scan to Pay ${urls.displayAmount}`}
                 </div>
               </div>
 
-              {/* Direct UPI App Buttons for Mobile */}
+              {/* Direct App Launch Buttons for Mobile */}
               <div className="mt-5 grid grid-cols-3 gap-2">
                 <a
-                  href={upiIntentUrl}
-                  className="py-2.5 px-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-center transition flex flex-col items-center justify-center gap-1 group"
-                >
-                  <span className="text-xs font-semibold text-white group-hover:text-blue-400">Google Pay</span>
-                  <span className="text-[10px] text-slate-400">Tap to Pay</span>
-                </a>
-                <a
-                  href={upiIntentUrl}
+                  href={urls.phonepe}
                   className="py-2.5 px-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-center transition flex flex-col items-center justify-center gap-1 group"
                 >
                   <span className="text-xs font-semibold text-purple-400 group-hover:text-purple-300">PhonePe</span>
-                  <span className="text-[10px] text-slate-400">Tap to Pay</span>
+                  <span className="text-[10px] text-slate-400">Open App</span>
                 </a>
+
                 <a
-                  href={upiIntentUrl}
+                  href={urls.gpay}
+                  className="py-2.5 px-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-center transition flex flex-col items-center justify-center gap-1 group"
+                >
+                  <span className="text-xs font-semibold text-white group-hover:text-blue-400">Google Pay</span>
+                  <span className="text-[10px] text-slate-400">Open App</span>
+                </a>
+
+                <a
+                  href={urls.paytm}
                   className="py-2.5 px-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-center transition flex flex-col items-center justify-center gap-1 group"
                 >
                   <span className="text-xs font-semibold text-sky-400 group-hover:text-sky-300">Paytm / BHIM</span>
-                  <span className="text-[10px] text-slate-400">Tap to Pay</span>
+                  <span className="text-[10px] text-slate-400">Open App</span>
                 </a>
               </div>
 
               {/* Main Pay Intent Button */}
-              <div className="mt-4 space-y-2">
+              <div className="mt-3 space-y-2">
                 <a
-                  href={upiIntentUrl}
+                  href={urls.generic}
                   className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3 px-5 rounded-xl transition shadow-lg shadow-blue-500/20 text-sm"
                 >
                   <Smartphone className="w-4 h-4" />
@@ -398,8 +515,16 @@ export function CheckoutClient({
                 </button>
               </div>
 
+              {/* Self-Payment Notice */}
+              <div className="mt-4 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 flex items-start gap-2 text-left">
+                <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  <span className="text-slate-300 font-medium">Testing UPI?</span> Use another phone or bank account. Bank UPI rules do not permit sending money to your own UPI ID.
+                </p>
+              </div>
+
               {/* Enter UTR Proof Form */}
-              <div className="mt-5 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-left">
+              <div className="mt-4 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-left">
                 <div className="text-xs font-semibold text-white mb-1">Paid via UPI? Verify Instantly:</div>
                 <p className="text-[11px] text-slate-400 mb-3">
                   Enter the 12-digit UPI Ref / UTR number from your payment app receipt to complete the order immediately.
@@ -428,36 +553,15 @@ export function CheckoutClient({
               </div>
 
               {/* Live Polling Status */}
-              <div className="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+              <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
                 <div className="flex items-center gap-2">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                   </span>
-                  <span>Awaiting verified payment confirmation...</span>
+                  <span>Awaiting payment confirmation...</span>
                 </div>
-                <div className="font-mono text-[11px] text-slate-500">{providerId}</div>
-              </div>
-
-              {/* Sandbox Simulation Widget */}
-              <div className="mt-4 p-3 rounded-xl bg-amber-950/20 border border-amber-500/20 text-left">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-amber-400 text-xs font-semibold">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Sandbox Test Mode</span>
-                  </div>
-                  <button
-                    disabled={isSimulating}
-                    onClick={handleSimulatePayment}
-                    className="text-[11px] bg-amber-500 hover:bg-amber-400 text-black font-semibold px-2.5 py-1 rounded-md transition flex items-center gap-1"
-                  >
-                    {isSimulating ? <RefreshCw className="w-3 h-3 animate-spin" /> : null}
-                    <span>Simulate Payment</span>
-                  </button>
-                </div>
-                {simulationMessage && (
-                  <p className="text-[11px] text-amber-300/80 mt-1.5 font-mono">{simulationMessage}</p>
-                )}
+                <div className="font-mono text-[11px] text-slate-500">UPI Instant</div>
               </div>
             </div>
           </div>
