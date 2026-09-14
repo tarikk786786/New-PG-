@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { stateMachine } from "@/lib/services/state-machine";
+import { StateMachineService } from "@/lib/services/state-machine";
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Transition state safely
-    if (stateMachine.canTransition(order.status, "PAID")) {
+    if (StateMachineService.canTransition(order.status as any, "PAID")) {
       await db.orders.updateStatus(order.id, "PAID");
     }
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       const p = payments[0];
       p.status = "PAID";
       p.providerPaymentId = cleanUtr;
-      p.updatedAt = new Date().toISOString();
+      p.paidAt = new Date().toISOString();
     } else {
       await db.payments.create({
         id: `pay_${Date.now()}`,
