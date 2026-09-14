@@ -20,8 +20,8 @@ export class UPIProvider implements PaymentProvider {
   private merchantName: string;
 
   constructor() {
-    this.vpa = process.env.UPI_VPA || "paycore@upi";
-    this.merchantName = process.env.UPI_MERCHANT_NAME || "PayCore Merchant";
+    this.vpa = process.env.UPI_VPA || "princetarikislam-4@okaxis";
+    this.merchantName = process.env.UPI_MERCHANT_NAME || "Tarik Islam";
   }
 
   /**

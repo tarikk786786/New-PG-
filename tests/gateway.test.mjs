@@ -79,8 +79,8 @@ test("Razorpay Signature Verification: Valid signature matches raw body", () => 
 
 // Test 4: NPCI UPI URI Builder
 test("NPCI UPI URI: Conforms to upi://pay specification", () => {
-  const vpa = "paycore@upi";
-  const name = encodeURIComponent("PayCore Merchant");
+  const vpa = "princetarikislam-4@okaxis";
+  const name = encodeURIComponent("Tarik Islam");
   const amount = (49900 / 100).toFixed(2);
   const ref = "ORD-82931";
   const note = encodeURIComponent("Payment");
@@ -88,7 +88,7 @@ test("NPCI UPI URI: Conforms to upi://pay specification", () => {
   const uri = `upi://pay?pa=${vpa}&pn=${name}&am=${amount}&tr=${ref}&tn=${note}&cu=INR`;
 
   assert.match(uri, /^upi:\/\/pay\?/);
-  assert.match(uri, /pa=paycore%40upi|pa=paycore@upi/);
+  assert.match(uri, /pa=princetarikislam-4%40okaxis|pa=princetarikislam-4@okaxis/);
   assert.match(uri, /am=499\.00/);
   assert.match(uri, /cu=INR/);
 });

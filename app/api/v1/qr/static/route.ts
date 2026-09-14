@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const vpa = body.vpa || process.env.UPI_VPA || "paycore@upi";
-    const name = encodeURIComponent(body.merchantName || process.env.UPI_MERCHANT_NAME || "PayCore Merchant");
+    const vpa = body.vpa || process.env.UPI_VPA || "princetarikislam-4@okaxis";
+    const name = encodeURIComponent(body.merchantName || process.env.UPI_MERCHANT_NAME || "Tarik Islam");
     const note = encodeURIComponent(body.note || "PayCore Merchant Payment");
 
     // Static QR contains no fixed amount, user enters amount at scan time
