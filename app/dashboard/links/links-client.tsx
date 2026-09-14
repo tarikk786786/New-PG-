@@ -12,6 +12,9 @@ import {
   QrCode,
   X,
   CreditCard,
+  Zap,
+  Download,
+  Key,
 } from "lucide-react";
 
 export function LinksClient({ initialLinks }: { initialLinks: PaymentLink[] }) {
@@ -24,6 +27,10 @@ export function LinksClient({ initialLinks }: { initialLinks: PaymentLink[] }) {
   const [amountRupees, setAmountRupees] = useState("");
   const [description, setDescription] = useState("");
   const [code, setCode] = useState("");
+  const [productType, setProductType] = useState<"standard" | "digital">("standard");
+  const [downloadUrl, setDownloadUrl] = useState("");
+  const [licenseKey, setLicenseKey] = useState("");
+  const [deliveryInstructions, setDeliveryInstructions] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCopy = (code: string) => {
@@ -53,6 +60,10 @@ export function LinksClient({ initialLinks }: { initialLinks: PaymentLink[] }) {
           currency: "INR",
           description,
           code: code.trim() || undefined,
+          productType,
+          downloadUrl: downloadUrl.trim() || undefined,
+          licenseKey: licenseKey.trim() || undefined,
+          deliveryInstructions: deliveryInstructions.trim() || undefined,
         }),
       });
 
@@ -64,6 +75,10 @@ export function LinksClient({ initialLinks }: { initialLinks: PaymentLink[] }) {
         setAmountRupees("");
         setDescription("");
         setCode("");
+        setProductType("standard");
+        setDownloadUrl("");
+        setLicenseKey("");
+        setDeliveryInstructions("");
       }
     } catch (err) {
       console.error("Failed to create link:", err);
@@ -205,6 +220,64 @@ export function LinksClient({ initialLinks }: { initialLinks: PaymentLink[] }) {
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                 />
+              </div>
+
+              {/* Digital Product Delivery Options */}
+              <div className="pt-2 border-t border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 text-slate-200 font-medium">
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Digital Product Delivery</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setProductType(productType === "digital" ? "standard" : "digital")}
+                    className={`text-[11px] px-2.5 py-1 rounded-lg border transition ${
+                      productType === "digital"
+                        ? "bg-indigo-950 text-indigo-300 border-indigo-500/40 font-semibold"
+                        : "bg-slate-800 text-slate-400 border-slate-700"
+                    }`}
+                  >
+                    {productType === "digital" ? "Enabled (Digital)" : "Standard Payment"}
+                  </button>
+                </div>
+
+                {productType === "digital" && (
+                  <div className="space-y-3 p-3 rounded-xl bg-indigo-950/30 border border-indigo-500/20 animate-in fade-in">
+                    <div>
+                      <label className="block text-slate-400 text-[11px] mb-1">Download / Access URL</label>
+                      <input
+                        type="url"
+                        placeholder="https://drive.google.com/... or https://yourdomain.com/file.zip"
+                        value={downloadUrl}
+                        onChange={(e) => setDownloadUrl(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 text-[11px] mb-1">License Key / Serial (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. LIC-PRO-98412 or leave blank to auto-generate"
+                        value={licenseKey}
+                        onChange={(e) => setLicenseKey(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 text-[11px] mb-1">Delivery Instructions (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Unzip and run npm start, or redeem on our portal."
+                        value={deliveryInstructions}
+                        onChange={(e) => setDeliveryInstructions(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-400"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button

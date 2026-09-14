@@ -9,7 +9,15 @@ export default async function PayPage({
   searchParams,
 }: {
   params: Promise<{ code: string }>;
-  searchParams?: Promise<{ amount?: string; title?: string; desc?: string }>;
+  searchParams?: Promise<{
+    amount?: string;
+    title?: string;
+    desc?: string;
+    type?: string;
+    download?: string;
+    license?: string;
+    instructions?: string;
+  }>;
 }) {
   const { code } = await params;
   const query = searchParams ? await searchParams : {};
@@ -18,6 +26,10 @@ export default async function PayPage({
   let amount = query.amount ? Math.round(parseFloat(query.amount) * 100) : 49900; // default 499.00
   let currency = "INR";
   let description = query.desc || "Order payment";
+  let productType: "standard" | "digital" = (query.type === "digital" || Boolean(query.download)) ? "digital" : "standard";
+  let downloadUrl = query.download || "";
+  let licenseKey = query.license || "";
+  let deliveryInstructions = query.instructions || "";
   let orderId = "";
   let orderNumber = "";
   let qrImageUrl = "";
@@ -42,6 +54,10 @@ export default async function PayPage({
     amount = link.amount;
     currency = link.currency;
     description = link.description || `Payment for ${link.title}`;
+    if (link.productType) productType = link.productType;
+    if (link.downloadUrl) downloadUrl = link.downloadUrl;
+    if (link.licenseKey) licenseKey = link.licenseKey;
+    if (link.deliveryInstructions) deliveryInstructions = link.deliveryInstructions;
 
     // Create a dynamic order for this checkout session
     orderId = generateId("ord");
@@ -128,6 +144,10 @@ export default async function PayPage({
       providerName={activeProvider.name}
       providerId={activeProvider.id}
       vpa={vpa}
+      productType={productType}
+      downloadUrl={downloadUrl}
+      licenseKey={licenseKey}
+      deliveryInstructions={deliveryInstructions}
     />
   );
 }

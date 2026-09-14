@@ -15,6 +15,10 @@ import {
   ArrowRight,
   RefreshCw,
   ExternalLink,
+  Download,
+  Key,
+  FileText,
+  Zap,
 } from "lucide-react";
 
 interface CheckoutClientProps {
@@ -30,6 +34,10 @@ interface CheckoutClientProps {
   providerName: string;
   providerId: string;
   vpa?: string;
+  productType?: "standard" | "digital";
+  downloadUrl?: string;
+  licenseKey?: string;
+  deliveryInstructions?: string;
 }
 
 export function CheckoutClient({
@@ -45,10 +53,15 @@ export function CheckoutClient({
   providerName,
   providerId,
   vpa = "princetarikislam-4@okaxis",
+  productType = "standard",
+  downloadUrl,
+  licenseKey,
+  deliveryInstructions,
 }: CheckoutClientProps) {
   const [secondsRemaining, setSecondsRemaining] = useState(15 * 60);
   const [copied, setCopied] = useState(false);
   const [copiedVpa, setCopiedVpa] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
   const [status, setStatus] = useState<"PENDING" | "PAID" | "FAILED">("PENDING");
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationMessage, setSimulationMessage] = useState("");
@@ -100,6 +113,13 @@ export function CheckoutClient({
     navigator.clipboard.writeText(vpa);
     setCopiedVpa(true);
     setTimeout(() => setCopiedVpa(false), 2000);
+  };
+
+  const copyLicenseKey = () => {
+    if (!licenseKey) return;
+    navigator.clipboard.writeText(licenseKey);
+    setCopiedKey(true);
+    setTimeout(() => setCopiedKey(false), 2000);
   };
 
   const handleConfirmUtr = async (e: React.FormEvent) => {
@@ -213,6 +233,58 @@ export function CheckoutClient({
               </div>
             </div>
 
+            {/* Instant Digital Product Delivery Section */}
+            {productType === "digital" && (downloadUrl || licenseKey || deliveryInstructions) && (
+              <div className="bg-gradient-to-br from-indigo-950/70 to-blue-950/70 border border-indigo-500/30 rounded-2xl p-5 mb-6 text-left shadow-lg">
+                <div className="flex items-center gap-2 text-indigo-300 font-semibold text-sm mb-3">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  <span>Your Digital Content is Unlocked!</span>
+                </div>
+
+                {downloadUrl && (
+                  <a
+                    href={downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="w-full mb-3 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold py-3 px-4 rounded-xl transition shadow-lg shadow-emerald-600/20 text-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Digital Files Now</span>
+                  </a>
+                )}
+
+                {licenseKey && (
+                  <div className="bg-slate-900/90 rounded-xl p-3 border border-slate-700/80 mb-3">
+                    <div className="text-[11px] text-slate-400 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5 text-amber-400" /> License / Serial Key
+                      </span>
+                      <button
+                        onClick={copyLicenseKey}
+                        className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                      >
+                        {copiedKey ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedKey ? "Copied" : "Copy Key"}</span>
+                      </button>
+                    </div>
+                    <div className="font-mono text-sm text-emerald-300 select-all font-semibold tracking-wide">
+                      {licenseKey}
+                    </div>
+                  </div>
+                )}
+
+                {deliveryInstructions && (
+                  <div className="text-xs text-slate-300 bg-slate-900/50 rounded-xl p-3 border border-slate-800">
+                    <div className="text-[11px] text-slate-400 font-medium mb-1 flex items-center gap-1">
+                      <FileText className="w-3 h-3 text-slate-400" /> Delivery Instructions:
+                    </div>
+                    <p className="text-slate-300 text-xs leading-relaxed">{deliveryInstructions}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <a
               href="/dashboard"
               className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3 px-6 rounded-xl transition shadow-lg shadow-blue-500/25 text-sm"
@@ -227,9 +299,17 @@ export function CheckoutClient({
             <div className="p-6 border-b border-slate-800/80 bg-slate-900/40">
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-blue-400 bg-blue-950/60 border border-blue-500/20 px-2 py-0.5 rounded">
-                    {orderNumber}
-                  </span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-blue-400 bg-blue-950/60 border border-blue-500/20 px-2 py-0.5 rounded">
+                      {orderNumber}
+                    </span>
+                    {productType === "digital" && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-300 bg-indigo-950/80 border border-indigo-500/30 px-2 py-0.5 rounded-full">
+                        <Zap className="w-3 h-3 text-amber-400" />
+                        <span>Digital Delivery</span>
+                      </span>
+                    )}
+                  </div>
                   <h2 className="text-lg font-bold text-white mt-1.5">{title}</h2>
                   <p className="text-xs text-slate-400 line-clamp-1">{description}</p>
                 </div>

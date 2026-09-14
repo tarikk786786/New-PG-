@@ -38,14 +38,21 @@ export interface Customer {
   createdAt: string;
 }
 
+export type ProductType = "standard" | "digital";
+
 export interface Order {
   id: string;
   orderNumber: string;
   customerId?: string;
+  customerEmail?: string;
   amount: number; // in integer paise (e.g. 49900 = ₹499.00)
   currency: string;
   status: OrderStatus;
   description?: string;
+  productType?: ProductType;
+  downloadUrl?: string;
+  licenseKey?: string;
+  deliveryInstructions?: string;
   metadata?: Record<string, any>;
   checkoutSessionId?: string;
   createdAt: string;
@@ -77,6 +84,10 @@ export interface PaymentLink {
   amount: number; // in paise
   currency: string;
   description?: string;
+  productType?: ProductType;
+  downloadUrl?: string;
+  licenseKey?: string;
+  deliveryInstructions?: string;
   active: boolean;
   maxPayments?: number;
   paymentCount: number;
