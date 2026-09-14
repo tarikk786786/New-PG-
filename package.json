@@ -15,11 +15,12 @@
   "author": "PayCore",
   "license": "MIT",
   "type": "module",
+  "packageManager": "pnpm@10.5.2",
   "dependencies": {
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.45.0",
-    "next": "15.2.1",
+    "next": "15.5.25",
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
     "react": "19.0.0",
